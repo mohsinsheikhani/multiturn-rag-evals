@@ -4,4 +4,10 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "langgraph>=1.2.16",
+    "openai>=3.36.0",
+    "python-dotenv>=1.2.4",
+    "qdrant-client>=1.19.1",
+    "tqdm>=4.70.1",
+]
