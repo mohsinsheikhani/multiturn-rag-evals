@@ -1,4 +1,5 @@
-from openai import OpenAI
+# drop-in wrapper: logs each call as a Langfuse generation with model and tokens
+from langfuse.openai import OpenAI
 
 # MTRAG Appendix D.2. The refusal string is what answerability checks look for.
 REFUSAL = "I do not have specific information"
@@ -28,6 +29,7 @@ class Generator:
 
         prompt = f"{GENERATION_PROMPT}\n\n{passage_block}\n\n" + "\n".join(turns)
         response = self._client.chat.completions.create(
+            name="generate-llm",
             model=self._model,
             temperature=0,
             messages=[{"role": "user", "content": prompt}],
