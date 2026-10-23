@@ -1,6 +1,7 @@
 from typing import Literal
 
-from openai import OpenAI
+# drop-in wrapper: logs each call as a Langfuse generation with model and tokens
+from langfuse.openai import OpenAI
 from pydantic import BaseModel, ConfigDict, Field
 
 # MTRAG Appendix C.1 (Figure 5), kept verbatim so our rewrite numbers
@@ -45,6 +46,7 @@ class Rewriter:
     def rewrite(self, history: list[dict], user_message: str) -> dict:
         prompt = REWRITE_PROMPT.format(conversation=format_conversation(history, user_message))
         response = self._client.chat.completions.parse(
+            name="rewrite-llm",
             model=self._model,
             temperature=0,
             response_format=RewriteOutput,
