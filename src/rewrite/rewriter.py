@@ -66,6 +66,11 @@ class Rewriter:
         self._prompt = PROMPTS[prompt]
 
     def rewrite(self, history: list[dict], user_message: str) -> dict:
+        # turn 1 has nothing to depend on, so it is standalone by definition.
+        # sent to the model anyway, it sometimes answered the question instead (44/1, 47/1)
+        if not history:
+            return {"rewrite_class": "standalone", "rewritten_query": user_message}
+
         prompt = self._prompt.format(conversation=format_conversation(history, user_message))
         # reasoning models (gpt-5 and later, o-series) only accept the default temperature
         reasoning = self._model.startswith(("gpt-5", "gpt-6", "o"))
