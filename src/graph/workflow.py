@@ -2,9 +2,9 @@ from typing import TypedDict
 
 from langgraph.graph import END, START, StateGraph
 
-from src.embedding.embedder import Embedder
-from src.embedding.vector_store import VectorStore
 from src.generation.generator import Generator
+from src.rerank.reranker import Reranker
+from src.retrieval.retriever import Retriever
 from src.rewrite.rewriter import Rewriter
 
 
@@ -26,27 +26,33 @@ class TurnState(TypedDict, total=False):
 
 
 # 3 matches what MTRAG's own bot fed the generator (max_count in conversations.json)
-def build_graph(collection: str = "mtrag_govt", top_k: int = 3):
-    rewriter = Rewriter()
-    embedder = Embedder()
-    store = VectorStore()
+def build_graph(
+    collection: str = "mtrag_govt",
+    top_k: int = 3,
+    rewrite_prompt: str = "mtrag",
+    rewrite_model: str = "gpt-4o-mini",
+    rerank: bool = False,
+    hybrid: bool = False,
+):
+    rewriter = Rewriter(model=rewrite_model, prompt=rewrite_prompt)
+    retriever = Retriever(collection, hybrid=hybrid)
+    reranker = Reranker()
     generator = Generator()
 
     def rewrite(state: TurnState) -> dict:
         return rewriter.rewrite(state["history"], state["user_message"])
 
     def retrieve(state: TurnState) -> dict:
-        query_vector = embedder.embed_query(state["rewritten_query"])
-        hits = store.search(collection, query_vector, limit=top_k)
-        passages = [
-            {
-                "passage_id": hit.payload["passage_id"],
-                "score": hit.score,
-                "title": hit.payload["title"],
-                "text": hit.payload["text"],
-            }
-            for hit in hits
-        ]
+        if not rerank:
+            return {"passages": retriever.search(state["rewritten_query"], k=top_k)}
+
+        # the rewrite alone missed gold passages that the full history found
+        # deeper down, so both feed one fused pool and an LLM picks the top_k
+        full_history = "\n".join([t["text"] for t in state["history"]] + [state["user_message"]])
+        pool = retriever.pool([state["rewritten_query"], full_history])
+        passages = reranker.rerank(
+            state["history"], state["user_message"], state["rewritten_query"], pool, k=top_k
+        )
         return {"passages": passages}
 
     def generate(state: TurnState) -> dict:
