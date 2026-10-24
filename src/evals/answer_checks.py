@@ -12,18 +12,20 @@ from src.rewrite.rewriter import format_conversation
 
 IDK_PROMPT = """You are grading the answer of a chatbot that answers questions from documents.
 
-Your job: decide whether the answer says it cannot answer the question.
+Your job: decide whether the ANSWER to the last user message says it cannot answer.
 
 - "full": the answer says it cannot answer and gives no real answer, for example "I do not have specific information about that".
 - "partial": the answer gives some of what was asked, but says it cannot answer another part.
 - "none": the answer tries to answer everything and never says it lacks the information.
 
+Grade only the ANSWER. The conversation is there so you know what was asked. Earlier assistant turns in it may say they lack information, but they are not being graded, so ignore them. idk_quote must be copied word for word from the ANSWER, or be empty.
+
 Only judge whether the answer admits it can't answer. Do not judge whether the answer is correct.
 
-CONVERSATION:
+CONVERSATION (context only, not graded):
 {conversation}
 
-ANSWER:
+ANSWER (grade this):
 {answer}"""
 
 
