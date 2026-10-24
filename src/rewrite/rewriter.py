@@ -20,6 +20,27 @@ REWRITE_PROMPT = (
     "{conversation} ASSISTANT:"
 )
 
+# our own version: MTRAG's prompt plus one rule per failure found in the
+# Stage 2 rewrite review (10/4, 38/5, 72/6). The MTRAG one stays the baseline.
+REWRITE_RULES = (
+    "Rules:\n"
+    "1. A full sentence can still depend on the history. If a word in it, such as \"my expenses\", "
+    "\"the forms\" or \"the fee\", only makes clear sense because of earlier turns, the class is "
+    "'non-standalone'.\n"
+    "2. Keep the question as open as the user left it. If the user only names a topic, such as "
+    "\"How about mediation?\" or \"Discrimination\", do not narrow it to one aspect (process, cost, "
+    "eligibility) the user did not ask about.\n"
+    "3. If the user repeats an earlier question with a new subject, such as \"any advantage to a "
+    "women owned company?\" followed by \"anything for vets?\", carry over the earlier question and "
+    "its setting, and read the new subject the way the conversation uses it (here: veteran-owned "
+    "companies, not veterans in general).\n\n"
+)
+
+PROMPTS = {
+    "mtrag": REWRITE_PROMPT,
+    "v2": REWRITE_PROMPT.replace("{conversation}", REWRITE_RULES + "{conversation}"),
+}
+
 SPEAKER_LABELS = {"user": "USER", "agent": "ASSISTANT"}
 
 
@@ -39,16 +60,19 @@ def format_conversation(history: list[dict], user_message: str) -> str:
 
 
 class Rewriter:
-    def __init__(self, model: str = "gpt-4o-mini"):
+    def __init__(self, model: str = "gpt-4o-mini", prompt: str = "mtrag"):
         self._client = OpenAI()
         self._model = model
+        self._prompt = PROMPTS[prompt]
 
     def rewrite(self, history: list[dict], user_message: str) -> dict:
-        prompt = REWRITE_PROMPT.format(conversation=format_conversation(history, user_message))
+        prompt = self._prompt.format(conversation=format_conversation(history, user_message))
+        # reasoning models (gpt-5 and later, o-series) only accept the default temperature
+        reasoning = self._model.startswith(("gpt-5", "gpt-6", "o"))
         response = self._client.chat.completions.parse(
             name="rewrite-llm",
             model=self._model,
-            temperature=0,
+            **({} if reasoning else {"temperature": 0}),
             response_format=RewriteOutput,
             messages=[{"role": "user", "content": prompt}],
         )

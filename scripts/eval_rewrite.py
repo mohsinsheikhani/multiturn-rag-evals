@@ -76,10 +76,12 @@ def eval_turn(rewriter, judge, labels, conv: int, turn: int) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--turns", required=True, help="comma separated conv:turn pairs")
+    parser.add_argument("--prompt", default="mtrag", choices=["mtrag", "v2"], help="rewrite prompt")
+    parser.add_argument("--rewrite-model", default="gpt-4o-mini")
     args = parser.parse_args()
 
     labels = load_labels()
-    rewriter = Rewriter()
+    rewriter = Rewriter(model=args.rewrite_model, prompt=args.prompt)
     judge = RewriteJudge()
 
     for conv, turn in parse_turns(args.turns):
